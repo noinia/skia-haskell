@@ -1,0 +1,65 @@
+cabal-version:      3.14
+name:               skia-haskell
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            MIT
+license-file:       LICENSE
+author:             Frank Staals
+maintainer:         frank@fstaals.net
+-- copyright:
+category:           Graphics
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common setup
+    ghc-options: -Wall
+    build-depends:
+        base           >= 4.20.0.0 && < 5
+      , effectful-core >= 2.5.1.0  && < 2.6
+      , sdl2           >= 2.5.5    && < 2.6
+      , inline-c-cpp   >= 0.5.0.2  && < 0.6
+
+    default-language: GHC2024
+    default-extensions:
+        TypeData
+      , TypeFamilies
+
+library
+    import:           setup
+    exposed-modules:
+      Skia.Canvas
+      Skia.Canvas.Raw
+      Skia.Canvas.Type
+
+      Skia.Color
+      Skia.Path
+
+      Skia.Paint
+
+      MyLib
+
+    -- other-modules:
+    -- other-extensions:
+    hs-source-dirs:   src
+
+executable skia-haskell
+    import:           setup
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:
+        skia-haskell
+
+    hs-source-dirs:   app
+
+test-suite skia-haskell-test
+    import:           setup
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        skia-haskell
