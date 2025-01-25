@@ -25,24 +25,9 @@ int main (int argc, char * const argv[]) {
   SkCanvas* rasterCanvas = rasterSurface->getCanvas();
 
 
-  draw(rasterCanvas);
-  sk_sp<SkImage> img(rasterSurface->makeImageSnapshot());
-  if (!img) { return; }
-  sk_sp<SkData> png = SkPngEncoder::Encode(nullptr, img, {});
-  if (!png) { return; }
-  SkFILEWStream out(path);
-  (void)out.write(png->data(), png->size());
-
-
-  sk_sp<SkSurface> rasterSurface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
-  SkCanvas* canvas = rasterSurface->getCanvas();
-
-
-  // SkFILEWStream svgStream(filePath);
-  // std::unique_ptr<SkXMLWriter> xmlWriter(new SkXMLStreamWriter(&svgStream));
-  // SkRect bounds = SkRect::MakeIWH(width, height);
-  // std::unique_ptr<SkCanvas> canvas = SkSVGCanvas::Make(bounds, xmlWriter.get());
-
+  ////////////////////////////////////////////////////////////////////////////////
+  // Draw stuff
+  ////////////////////////////////////////////////////////////////////////////////
 
   // creating a path to be drawn
   SkPath path;
@@ -61,20 +46,21 @@ int main (int argc, char * const argv[]) {
   canvas->clear(SK_ColorWHITE);
   canvas->drawPath(path, p);
 
-  // make a PNG encoded image using the canvas
+  ////////////////////////////////////////////////////////////////////////////////
+
+
   sk_sp<SkImage> img(rasterSurface->makeImageSnapshot());
   if (!img) {
     std::cout << "error img";
     return 1;
   }
-
   sk_sp<SkData> png = SkPngEncoder::Encode(nullptr, img, {});
   if (!png) {
     std::cout << "error png";
     return 1;
   }
 
-  // write the data to the file specified by filePath
+
   std::cout << "writing file";
   SkFILEWStream out(filePath);
   (void)out.write(png->data(), png->size());
