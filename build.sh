@@ -7,7 +7,8 @@ g++ -std=c++17 hello.cpp -framework CoreFoundation -framework \
   -o hello \
   -I/opt/homebrew/opt/jpeg-turbo/include \
   -L/opt/homebrew/opt/jpeg-turbo/lib \
-  -lz -ljpeg -lpng
+  -lz -ljpeg -lpng \
+  -lexpat
 
   # -L/opt/homebrew/opt/webp/include/webp -llibwebp
   # -L/opt/homebrew/opt/webp/include/webp -llibwebp
