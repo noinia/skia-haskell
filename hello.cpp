@@ -8,7 +8,8 @@
 
 #include "include/encode/SkPngEncoder.h"
 
-
+// #include "include/svg/SkSVGCanvas.h"
+// #include "SkXMLWriter.h"
 
 
 // #include "include/svg/SkSVGCanvas.h"
@@ -22,7 +23,7 @@ int main (int argc, char * const argv[]) {
 
   // create canvas to draw on
   sk_sp<SkSurface> rasterSurface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
-  SkCanvas* rasterCanvas = rasterSurface->getCanvas();
+  SkCanvas* canvas = rasterSurface->getCanvas();
 
 
   ////////////////////////////////////////////////////////////////////////////////
@@ -49,21 +50,14 @@ int main (int argc, char * const argv[]) {
   ////////////////////////////////////////////////////////////////////////////////
 
 
-  sk_sp<SkImage> img(rasterSurface->makeImageSnapshot());
-  if (!img) {
-    std::cout << "error img";
+  SkPixmap pixmap;
+  rasterSurface->peekPixels(&pixmap);
+
+  SkFILEWStream output(filePath);
+  if (!SkPngEncoder::Encode(&output, pixmap, {})) {
+    std::cout << "PNG encoding failed.\n";
     return 1;
   }
-  sk_sp<SkData> png = SkPngEncoder::Encode(nullptr, img, {});
-  if (!png) {
-    std::cout << "error png";
-    return 1;
-  }
-
-
-  std::cout << "writing file";
-  SkFILEWStream out(filePath);
-  (void)out.write(png->data(), png->size());
-
+  std::cout << "success\n";
   return 0;
 }
