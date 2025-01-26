@@ -51,8 +51,12 @@ library
     -- other-extensions:
     hs-source-dirs:   src
 
-    cxx-sources:
-      src/Skia/Canvas/Raw.cxx
+    ghc-options:
+      -optcxx-std=c++17
+      -optcxx-Wall
+
+    -- cxx-sources:
+    --   src/Skia/Canvas/Raw.cxx
 
     cxx-options:
       -std=c++17
