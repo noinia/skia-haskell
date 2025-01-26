@@ -3,6 +3,6 @@ module Skia.Canvas.Type
 
   ) where
 
+import Skia.Canvas.Raw
 
-
-type SkCanvas = ()
+--------------------------------------------------------------------------------

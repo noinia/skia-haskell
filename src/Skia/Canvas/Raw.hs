@@ -1,5 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Skia.Canvas.Raw
   ( clear
   , drawPath
@@ -8,19 +9,35 @@ module Skia.Canvas.Raw
 
 
   , testRaw
+
+
+  , SkCanvas
   ) where
 
-import Skia.Canvas.Type
 import Skia.Color
 import Skia.Paint
 import Skia.Path
 import System.OsPath
-
+-- import           Foreign.C.String (withCString)
+import           Foreign.Ptr
 import qualified Language.C.Inline.Cpp as C
 
 --------------------------------------------------------------------------------
 
-C.context $ C.cppCtx
+data CSkCanvas
+
+-- data SkCPaint
+
+
+-- skiaContext :: C.Context
+-- skiaContext =
+
+
+C.context $ C.cppCtx <> C.funCtx <> C.cppTypePairs
+ [ ("SkCanvas" , [t|CSkCanvas|])
+ ]
+
+ -- skiaContext
 
 --------------------------------------------------------------------------------
 -- * C++ Imports
@@ -44,7 +61,12 @@ C.include "src/xml/SkXMLWriter.h"
 
 --------------------------------------------------------------------------------
 
-clear :: SkColor -> SkCanvas -> IO ()
+-- | A SkCanvas
+newtype SkCanvas = SkCanvas (Ptr CSkCanvas)
+
+--------------------------------------------------------------------------------
+
+clear :: SkCanvas -> SkColor -> IO ()
 clear = undefined
 
 
@@ -60,29 +82,40 @@ withPNGCanvas w h filePath draw = undefined
 --------------------------------------------------------------------------------
 
 testRaw :: IO ()
-testRaw = [C.block|void {
+testRaw = testRawImpl 255 255 testDraw
+
+testDraw         :: Ptr CSkCanvas -> IO ()
+testDraw canvas  =
+  [C.block|void {
+          SkPath path;
+          path.moveTo(10.0f, 10.0f);
+          path.lineTo(100.0f, 0.0f);
+          path.lineTo(100.0f, 100.0f);
+          path.lineTo(0.0f, 100.0f);
+          path.lineTo(50.0f, 50.0f);
+          path.close();
+
+          // creating a paint to draw with
+          SkPaint p;
+          p.setAntiAlias(true);
+
+          // clear out which may be was drawn before and draw the path
+          $(SkCanvas* canvas)->clear(SK_ColorWHITE);
+          $(SkCanvas* canvas)->drawPath(path, p);
+  }|]
+
+testRawImpl                   :: C.CInt -> C.CInt
+                              -> (Ptr CSkCanvas -> IO ())
+                              -> IO ()
+testRawImpl width height draw =
+  [C.block|void {
               const char pngFilePath[] = "/tmp/skiaTestImage.png";
-              int width = 256;
-              int height = 256;
 
-              sk_sp<SkSurface> rasterSurface = SkSurfaces::Raster(SkImageInfo::MakeN32Premul(width, height));
+              sk_sp<SkSurface> rasterSurface =
+                  SkSurfaces::Raster(SkImageInfo::MakeN32Premul($(int width), $(int height)));
+
               SkCanvas* canvas = rasterSurface->getCanvas();
-
-              SkPath path;
-              path.moveTo(10.0f, 10.0f);
-              path.lineTo(100.0f, 0.0f);
-              path.lineTo(100.0f, 100.0f);
-              path.lineTo(0.0f, 100.0f);
-              path.lineTo(50.0f, 50.0f);
-              path.close();
-
-              // creating a paint to draw with
-              SkPaint p;
-              p.setAntiAlias(true);
-
-              // clear out which may be was drawn before and draw the path
-              canvas->clear(SK_ColorWHITE);
-              canvas->drawPath(path, p);
+              $fun:(void (*draw)(SkCanvas*))(canvas);
 
               SkPixmap pixmap;
               rasterSurface->peekPixels(&pixmap);
@@ -94,5 +127,5 @@ testRaw = [C.block|void {
               }
 
 
-              std::cout << "Hello world";
+              std::cout << "Hello world \n";
           }|]
