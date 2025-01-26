@@ -1,34 +1,33 @@
 {-# LANGUAGE TemplateHaskell #-}
 module Skia.Paint
-  ( SkPaint, antiAlias
+  ( Paint, antiAlias
 
   , skPaint
 
 
-  , CSkPaint
-  , createCSkPaint
+  , SkPaint
+  -- , createCSkPaint
   ) where
 
-import Control.Lens
+import           Control.Lens
+import           Foreign.Ptr
+import qualified Skia.Canvas.Raw as Raw
 
 --------------------------------------------------------------------------------
 
-type CSkPaint = ()
+data Paint = Paint { _antiAlias :: Bool
+                   }
+           deriving (Show,Eq)
 
 
-data SkPaint = SkPaint { _antiAlias :: Bool
-                       }
-             deriving (Show,Eq)
-
-
-makeLenses ''SkPaint
+makeLenses ''Paint
 
 -- | Creates a default SkPaint
-skPaint = SkPaint { _antiAlias = False }
+skPaint = Paint { _antiAlias = False }
 
 
+-- -- | Creates the C++ prepresentation of a SkPaint
+-- createCSkPaint :: SkPaint -> IO CSkPaint
+-- createCSkPaint = undefined
 
-
--- | Creates the C++ prepresentation of a SkPaint
-createCSkPaint :: SkPaint -> IO CSkPaint
-createCSkPaint = undefined
+newtype SkPaint = SkPaint (Ptr Raw.SkPaint)

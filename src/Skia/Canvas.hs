@@ -16,7 +16,7 @@ import           System.OsPath
 --------------------------------------------------------------------------------
 
 myDrawing :: Draw :> es => Eff es ()
-myDrawing = do clear skColorWhite
+myDrawing = do clear sk_ColorWHITE
                let paint = skPaint
                    path  = rectXYWH 10 20 100 130
                drawPath path paint
@@ -31,7 +31,7 @@ type data Draw :: Effect
 
 
 type instance DispatchOf Draw = Static WithSideEffects
-newtype instance StaticRep Draw = DrawRep SkCanvas
+newtype instance StaticRep Draw = DrawRep Canvas
 
 
 
@@ -41,48 +41,49 @@ newtype instance StaticRep Draw = DrawRep SkCanvas
 
 
 
--- type SkRect = ()
+-- type Rect = ()
 -- MakeXYWH
 
 
-rectXYWH :: Double -> Double -> Double -> Double -> SkPath
+rectXYWH :: Double -> Double -> Double -> Double -> Path
 rectXYWH = undefined
 
+type Color = ()
 
 -- | Clear the screen
-clear       :: (Draw :> es) => SkColor -> Eff es ()
+clear       :: (Draw :> es) => Color -> Eff es ()
 clear color = do DrawRep canvas <- getStaticRep
                  unsafeEff_ $ Raw.clear canvas color
 
 -- | Draw a path with the given paint
-drawPath            :: Draw :> es => SkPath -> SkPaint -> Eff es ()
+drawPath            :: Draw :> es => Path -> Paint -> Eff es ()
 drawPath path paint = do DrawRep canvas <- getStaticRep
-                         unsafeEff_ $ do cPaint <- createCSkPaint paint
+                         unsafeEff_ $ do cPaint <- undefined -- createCPaint paint
                                          Raw.drawPath canvas path cPaint
 
 -- | Draws stuff on a canvas
 drawOnCanvas        :: IOE :> es -- not sure I want this yet.
-                    => SkCanvas -> Eff (Draw : es) a -> Eff es a
+                    => Canvas -> Eff (Draw : es) a -> Eff es a
 drawOnCanvas canvas = evalStaticRep (DrawRep canvas)
 
 
 
 
 withPNGCanvas                   :: IOE :> es
-                                => Int -> Int -> OsPath -> (SkCanvas -> Eff es a) -> Eff es a
+                                => Int -> Int -> OsPath -> (Canvas -> Eff es a) -> Eff es a
 withPNGCanvas w h filePath draw = undefined
 
 
 
 
 
--- type SkPaint
+-- type Paint
 
--- clear :: SkColor -> SkCanvas -> m ()
+-- clear :: Color -> Canvas -> m ()
 -- clear = undefined
 
 
--- drawPath :: SkPath -> SkPaint -> SkCanvas -> m ()
+-- drawPath :: Path -> Paint -> Canvas -> m ()
 -- drawPath = undefined
 
 

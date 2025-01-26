@@ -1,14 +1,11 @@
 module Skia.Color
-  ( SkColor
-
-
-  , skColorWhite
+  ( Raw.SkColor
+  , Raw.sk_ColorWHITE
   ) where
+
+
+import qualified Skia.Canvas.Raw as Raw
 
 --------------------------------------------------------------------------------
 
-type SkColor  = ()
-
-
-skColorWhite :: SkColor
-skColorWhite = undefined
+-- newtype Color = Color (Ptr Raw.CSkColor)

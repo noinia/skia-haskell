@@ -20,6 +20,7 @@ common setup
       , effectful-core >= 2.5.1.0  && < 2.6
       , sdl2           >= 2.5.5    && < 2.6
       , inline-c-cpp   >= 0.5.0.2  && < 0.6
+      , inline-c       >= 0.9.1.10 && < 0.10
       , lens           >= 5.3.3    && < 6
       , filepath       >= 1.5.4    && < 1.6
 
@@ -36,7 +37,7 @@ common setup
 library
     import:           setup
     exposed-modules:
-      Skia.Canvas
+      -- Skia.Canvas
       Skia.Canvas.Raw
       Skia.Canvas.Type
 

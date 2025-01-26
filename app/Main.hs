@@ -1,7 +1,7 @@
 module Main where
 
 import Skia.Canvas.Raw(testRaw)
-import Skia.Canvas
+-- import Skia.Canvas
 
 --------------------------------------------------------------------------------
 

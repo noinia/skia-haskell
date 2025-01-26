@@ -1,8 +1,12 @@
 module Skia.Canvas.Type
-  ( SkCanvas
-
+  ( Canvas
+  , Raw.SkCanvas
   ) where
 
-import Skia.Canvas.Raw
+import           Foreign.Ptr
+import qualified Skia.Canvas.Raw as Raw
 
 --------------------------------------------------------------------------------
+
+-- | A SkCanvas
+newtype Canvas = Canvas (Ptr Raw.SkCanvas)

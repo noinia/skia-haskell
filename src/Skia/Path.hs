@@ -1,8 +1,14 @@
 module Skia.Path
-  ( SkPath
+  ( Path
 
+
+  , Raw.SkPath
   ) where
+
+
+import qualified Skia.Canvas.Raw as Raw
+import           Foreign.Ptr
 
 --------------------------------------------------------------------------------
 
-type SkPath = ()
+newtype Path = Path (Ptr Raw.SkPath)
