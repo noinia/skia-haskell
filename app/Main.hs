@@ -1,8 +1,11 @@
 module Main where
 
-import qualified MyLib (someFunc)
+import Skia.Canvas.Raw(testRaw)
+import Skia.Canvas
+
+--------------------------------------------------------------------------------
 
 main :: IO ()
 main = do
   putStrLn "Hello, Haskell!"
-  MyLib.someFunc
+  testRaw

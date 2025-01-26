@@ -20,11 +20,18 @@ common setup
       , effectful-core >= 2.5.1.0  && < 2.6
       , sdl2           >= 2.5.5    && < 2.6
       , inline-c-cpp   >= 0.5.0.2  && < 0.6
+      , lens           >= 5.3.3    && < 6
+      , filepath       >= 1.5.4    && < 1.6
 
     default-language: GHC2024
     default-extensions:
         TypeData
       , TypeFamilies
+
+
+    -- cxx-options: -std=c++17 -Wall
+
+
 
 library
     import:           setup
@@ -43,6 +50,37 @@ library
     -- other-modules:
     -- other-extensions:
     hs-source-dirs:   src
+
+    cxx-sources:
+      src/Skia/Canvas/Raw.cxx
+
+    cxx-options:
+      -std=c++17
+      -framework CoreFoundation
+      -framework CoreGraphics
+      -framework CoreText
+      -framework CoreServices
+      -Wall
+
+    extra-libraries:
+      skia
+      z
+      jpeg
+      png
+      expat
+
+    extra-lib-dirs:
+      /Users/frank/workspace/skia/out/Static
+      /opt/homebrew/opt/jpeg-turbo/lib
+
+    include-dirs:
+      /Users/frank/workspace/skia/
+      /opt/homebrew/opt/jpeg-turbo/include
+
+    -- pkgconfig-depends:
+    --     expat
+    --   , png
+    --   , z
 
 executable skia-haskell
     import:           setup
