@@ -23,6 +23,9 @@ common setup
       , inline-c       >= 0.9.1.10 && < 0.10
       , lens           >= 5.3.3    && < 6
       , filepath       >= 1.5.4    && < 1.6
+      , vector         >= 0.13.2   && < 0.14
+      , bytestring     >= 0.11     && < 0.13
+      , os-string      >= 2.0.7    && < 2.1
 
     default-language: GHC2024
     default-extensions:

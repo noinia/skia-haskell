@@ -8,15 +8,23 @@ module Skia.Canvas.Raw
   , withPNGCanvas
 
 
+
+
   , testRaw
 
 
   , SkCanvas
 
   , SkPaint
+  , newSkPaint
+  , newColoredSkPaint
 
   , SkPath
   , rectXYWH
+  , lineSegment
+  , polygon
+  , polyLine
+
 
   , SkColor
   , sk_ColorWHITE
@@ -30,7 +38,10 @@ import           Foreign.ForeignPtr
 import qualified Language.C.Inline.Cpp as C
 import qualified Language.C.Inline.Unsafe as CU
 import           Data.Word
-
+import qualified Data.Vector.Storable as Storable
+import           System.OsString.Internal.Types ( getOsString, getPosixString )
+import           Data.ByteString (ByteString)
+import           System.OsString.Data.ByteString.Short (fromShort)
 --------------------------------------------------------------------------------
 
 data SkCanvas
@@ -50,7 +61,7 @@ type SkColor = C.CUInt
 -- skiaContext =
 
 
-C.context $ C.cppCtx <> C.funCtx <> C.cppTypePairs
+C.context $ C.cppCtx <> C.funCtx <> C.vecCtx <> C.bsCtx <> C.cppTypePairs
  [ ("SkCanvas", [t|SkCanvas|])
  -- , ("SkColor",  [t|SkColor|])
  , ("SkPath",   [t|SkPath|])
@@ -91,15 +102,62 @@ sk_ColorWHITE = [C.pure|unsigned int {SK_ColorWHITE}|]
 -- SkColor is an alias for unisgned int
 
 
+
+
+
 --------------------------------------------------------------------------------
 
 newSkPaint :: IO (Ptr SkPaint)
 newSkPaint = [C.block|SkPaint* { return new SkPaint;}
              |]
 
+-- | Creates a new colored paint; the colors are assumed to be in the sRGB color space.
+-- (the forth float is the alpha value)
+newColoredSkPaint               :: (C.CFloat,C.CFloat,C.CFloat) -> C.CFloat -> IO (Ptr SkPaint)
+newColoredSkPaint (r,g,b) alpha =
+  [C.block|SkPaint* { return new SkPaint({$(float r),$(float g),$(float b),$(float alpha)});}|]
+
 -- | Finalizer for the path
 deleteSkPaint :: FunPtr (Ptr SkPaint -> IO ())
 deleteSkPaint = [C.funPtr| void deletePaint(SkPaint* paint) { delete paint; } |]
+
+
+
+-- setAlpha
+-- setAlphaf
+
+setAntiAlias                :: C.CBool -> Ptr SkPaint -> IO ()
+setAntiAlias enableAA paint = [C.block|void { $(SkPaint* paint)->setAntiAlias($(bool enableAA)); }|]
+
+-- setARGB
+-- setBlender
+-- setBlendMode
+-- setColor
+-- setColor
+-- setColor4f
+-- setColorFilter
+-- setDither
+-- setImageFilter
+-- setMaskFilter
+-- setPathEffect
+-- setShader
+
+-- | True = stroke only, false = fill only
+setStroke                    :: C.CBool -> Ptr SkPaint -> IO ()
+setStroke enableStroke paint =
+  [C.block|void { $(SkPaint* paint)->setStroke($(bool enableStroke)); }|]
+-- TODO
+{-
+setStrokeCap
+setStrokeJoin
+setStrokeMiter
+setStrokeWidth
+setStyle
+-}
+
+-- data PaintSpec = PaintSpec { antiAliassed :: Bool
+--                            ,
+--                            }
 
 
 --------------------------------------------------------------------------------
@@ -111,14 +169,67 @@ rectXYWH x y w h = [C.block|
           return new SkPath (SkPath::Rect(SkRect::MakeXYWH($(float x), $(float y), $(float w), $(float h))));
       }|]
 
+-- | Create a line segment from s to t
+lineSegment :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat) -> IO (Ptr SkPath)
+lineSegment (sx,sy) (tx,ty) =
+  [C.block|
+    SkPath* {
+      SkPath* path = new SkPath;
+      path->moveTo($(float sx), $(float sy));
+      path->lineTo($(float tx), $(float ty));
+
+      return path;
+    }
+  |]
+
+
+-- | Create a poline
+--
+-- pre: the vectors both have the same number n>= 1 of elements in them
+polyLine                :: Storable.Vector C.CFloat -- ^ xCoords
+                        -> Storable.Vector C.CFloat -- ^ y coords
+                        -> IO (Ptr SkPath)
+polyLine xCoords yCoords =
+  [C.block|
+    SkPath* {
+      SkPath* path = new SkPath;
+      path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
+      for (int i = 1 ; i < $vec-len:xCoords ; i++)
+        path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
+
+      return path;
+    }
+  |]
+
+-- |
+-- Create a polygon
+--
+-- pre: the vectors both have the same number n>= 1 of elements in them
+polygon :: Storable.Vector C.CFloat -- ^ xCoords
+        -> Storable.Vector C.CFloat -- ^ y coords
+        -> IO (Ptr SkPath)
+polygon xCoords yCoords =
+  [C.block|
+    SkPath* {
+      SkPath* path = new SkPath;
+      path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
+      for (int i = 1 ; i < $vec-len:xCoords ; i++)
+        path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
+      path->close();
+
+      return path;
+    }
+  |]
+
+
 -- | Finalizer for the path
 deleteSkPath :: FunPtr (Ptr SkPath -> IO ())
 deleteSkPath = [C.funPtr| void deletePath(SkPath* path) { delete path; } |]
 
 
 -- | Create a SkPath with the given constructor
-skPath        :: IO (Ptr SkPath) -> IO (ForeignPtr SkPath)
-skPath create = create >>= newForeignPtr deleteSkPath
+skPathWith        :: IO (Ptr SkPath) -> IO (ForeignPtr SkPath)
+skPathWith create = create >>= newForeignPtr deleteSkPath
 
 --------------------------------------------------------------------------------
 
@@ -133,20 +244,92 @@ drawPath canvas path paint =
           $(SkCanvas* canvas)->drawPath( *$(SkPath* path), *$(SkPaint* paint) );
   }|]
 
-withPNGCanvas                   :: Int -> Int -> OsPath -> (Ptr SkCanvas -> IO a) -> IO a
-withPNGCanvas w h filePath draw = undefined
+--------------------------------------------------------------------------------
+
+-- | Renders to an PNG File
+withPNGCanvas                   :: C.CInt -- ^ Width of the canvas
+                                -> C.CInt -- ^ Height of the canvas
+                                -> OsPath -- ^ output path to the png file
+                                -> (Ptr SkCanvas -> IO ()) -- ^ drawing function
+                                -> IO ()
+withPNGCanvas width height filePath draw =
+    [C.block|void {
+          sk_sp<SkSurface> rasterSurface =
+                  SkSurfaces::Raster(SkImageInfo::MakeN32Premul($(int width), $(int height)));
+
+          SkCanvas* canvas = rasterSurface->getCanvas();
+          $fun:(void (*draw)(SkCanvas*))(canvas);
+
+          SkPixmap pixmap;
+          rasterSurface->peekPixels(&pixmap);
+
+          SkFILEWStream output($bs-ptr:rawFilePath);
+          if (!SkPngEncoder::Encode(&output, pixmap, {})) {
+            std::cout << "PNG encoding failed.\n";
+            return;
+          }
+    }|]
+  where
+    rawFilePath :: ByteString
+    rawFilePath = fromShort . getPosixString . getOsString $ filePath
+    -- TODO: I think this works only on posix for now.
+    -- on windows should be s.t. like getWindowsString instead I think?
+
+--------------------------------------------------------------------------------
+
+withSVGCanvas                   :: C.CInt -- ^ Width of the canvas
+                                -> C.CInt -- ^ Height of the canvas
+                                -> OsPath -- ^ output path to the png file
+                                -> (Ptr SkCanvas -> IO ()) -- ^ drawing function
+                                -> IO ()
+withSVGCanvas width height filePath draw =
+    [C.block|void {
+          SkFILEWStream svgStream($bs-ptr:rawFilePath);
+
+          SkRect bounds = SkRect::MakeIWH($(int width), $(int height));
+          std::unique_ptr<SkCanvas> svgCanvas = SkSVGCanvas::Make(bounds, &svgStream);
+
+          SkCanvas* canvas = svgCanvas.get();
+          $fun:(void (*draw)(SkCanvas*))(canvas);
+    }|]
+  where
+    rawFilePath :: ByteString
+    rawFilePath = fromShort . getPosixString . getOsString $ filePath
+    -- TODO: I think this works only on posix for now.
+    -- on windows should be s.t. like getWindowsString instead I think?
+
+
 
 --------------------------------------------------------------------------------
 
 testRaw :: IO ()
-testRaw = testRawImpl 255 255 testDraw
+testRaw = do withPNGCanvas 255 255 [osp|/tmp/skiaTestImage.png|] testDraw
+             withSVGCanvas 500 500 [osp|/tmp/skiaTestImage.svg|] testDraw
+
 
 testDraw         :: Ptr SkCanvas -> IO ()
 testDraw canvas  = do
   rect  <- rectXYWH 10 20 120 130
+  poly  <- polygon (Storable.fromList [200, 210, 210, 200])
+                   (Storable.fromList [200, 200, 210, 210])
+
+  polyL  <- polyLine (Storable.fromList [200, 210, 210])
+                     (Storable.fromList [100, 100, 110])
+
+  seg   <- lineSegment (0,5) (200,10)
+
   paint <- newSkPaint
+
+  cPaint <- newColoredSkPaint (0.5,0.6,1) 1.0
+  setAntiAlias (C.CBool 1) cPaint
+  setStroke    (C.CBool 1) cPaint
+
   clear canvas sk_ColorWHITE
   drawPath canvas rect paint
+  drawPath canvas poly paint
+  drawPath canvas seg cPaint
+  drawPath canvas polyL cPaint
+
   [C.block|void {
      delete $(SkPath* rect);
      delete $(SkPaint* paint);
@@ -156,7 +339,7 @@ testDraw canvas  = do
   -- deleteSkPaint paint
 
 
-  -- path' <- skPath (rectXYWH 10 20 120 130)
+  -- path' <- skPathWith (rectXYWH 10 20 120 130)
   -- withForeignPtr path' $ \path -> do
   --   clear canvas sk_ColorWHITE
   --   drawPath
@@ -179,28 +362,28 @@ testDraw canvas  = do
   --         $(SkCanvas* canvas)->drawPath(path, p);
   -- }|]
 
-testRawImpl                   :: C.CInt -> C.CInt
-                              -> (Ptr SkCanvas -> IO ())
-                              -> IO ()
-testRawImpl width height draw =
-  [C.block|void {
-              const char pngFilePath[] = "/tmp/skiaTestImage.png";
+-- testRawImpl                   :: C.CInt -> C.CInt
+--                               -> (Ptr SkCanvas -> IO ())
+--                               -> IO ()
+-- testRawImpl width height draw =
+--   [C.block|void {
+--               const char pngFilePath[] = "/tmp/skiaTestImage.png";
 
-              sk_sp<SkSurface> rasterSurface =
-                  SkSurfaces::Raster(SkImageInfo::MakeN32Premul($(int width), $(int height)));
+--               sk_sp<SkSurface> rasterSurface =
+--                   SkSurfaces::Raster(SkImageInfo::MakeN32Premul($(int width), $(int height)));
 
-              SkCanvas* canvas = rasterSurface->getCanvas();
-              $fun:(void (*draw)(SkCanvas*))(canvas);
+--               SkCanvas* canvas = rasterSurface->getCanvas();
+--               $fun:(void (*draw)(SkCanvas*))(canvas);
 
-              SkPixmap pixmap;
-              rasterSurface->peekPixels(&pixmap);
+--               SkPixmap pixmap;
+--               rasterSurface->peekPixels(&pixmap);
 
-              SkFILEWStream output(pngFilePath);
-              if (!SkPngEncoder::Encode(&output, pixmap, {})) {
-                std::cout << "PNG encoding failed.\n";
-                return;
-              }
+--               SkFILEWStream output(pngFilePath);
+--               if (!SkPngEncoder::Encode(&output, pixmap, {})) {
+--                 std::cout << "PNG encoding failed.\n";
+--                 return;
+--               }
 
 
-              std::cout << "Hello world \n";
-          }|]
+--               std::cout << "Hello world \n";
+--           }|]
