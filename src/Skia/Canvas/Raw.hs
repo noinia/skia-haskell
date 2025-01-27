@@ -351,6 +351,7 @@ testDraw canvas  = do
      delete $(SkPath* rect);
      delete $(SkPath* poly);
      delete $(SkPath* polyL);
+     delete $(SkPath* seg);
 
      delete $(SkPaint* paint);
      delete $(SkPaint* cPaint);
