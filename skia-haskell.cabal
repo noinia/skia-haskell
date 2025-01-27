@@ -16,16 +16,19 @@ extra-doc-files:    CHANGELOG.md
 common setup
     ghc-options: -Wall
     build-depends:
-        base           >= 4.20.0.0 && < 5
-      , effectful-core >= 2.5.1.0  && < 2.6
-      , sdl2           >= 2.5.5    && < 2.6
-      , inline-c-cpp   >= 0.5.0.2  && < 0.6
-      , inline-c       >= 0.9.1.10 && < 0.10
-      , lens           >= 5.3.3    && < 6
-      , filepath       >= 1.5.4    && < 1.6
-      , vector         >= 0.13.2   && < 0.14
-      , bytestring     >= 0.11     && < 0.13
-      , os-string      >= 2.0.7    && < 2.1
+        base                    >= 4.20.0.0    && < 5
+      , effectful-core          >= 2.5.1.0     && < 2.6
+      , sdl2                    >= 2.5.5       && < 2.6
+      , inline-c-cpp            >= 0.5.0.2     && < 0.6
+      , inline-c                >= 0.9.1.10    && < 0.10
+      , lens                    >= 5.3.3       && < 6
+      , filepath                >= 1.5.4       && < 1.6
+      , vector                  >= 0.13.2      && < 0.14
+      , bytestring              >= 0.11        && < 0.13
+      , os-string               >= 2.0.7       && < 2.1
+      , data-default-class      >= 0.1         && < 1
+      , colour                  >= 2.3.6       && < 2.4
+
 
     default-language: GHC2024
     default-extensions:

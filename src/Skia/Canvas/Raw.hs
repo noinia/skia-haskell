@@ -192,7 +192,8 @@ rectXYWH x y w h = newForeignPtr deleteSkPath =<< rectXYWH'
       }|]
 
 -- | Create a line segment from s to t
-lineSegment :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat) -> IO (ForeignPtr SkPath)
+lineSegment                 :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat)
+                            -> IO (ForeignPtr SkPath)
 lineSegment (sx,sy) (tx,ty) = newForeignPtr deleteSkPath =<< lineSegment'
   where
     lineSegment' = [C.block|
@@ -228,9 +229,9 @@ polyLine xCoords yCoords = newForeignPtr deleteSkPath =<< polyLine'
 -- Create a polygon
 --
 -- pre: the vectors both have the same number n>= 1 of elements in them
-polygon :: Storable.Vector C.CFloat -- ^ xCoords
-        -> Storable.Vector C.CFloat -- ^ y coords
-        -> IO (ForeignPtr SkPath)
+polygon                 :: Storable.Vector C.CFloat -- ^ xCoords
+                        -> Storable.Vector C.CFloat -- ^ y coords
+                        -> IO (ForeignPtr SkPath)
 polygon xCoords yCoords = newForeignPtr deleteSkPath =<< polygon'
   where
     polygon' =
@@ -251,19 +252,15 @@ polygon xCoords yCoords = newForeignPtr deleteSkPath =<< polygon'
 deleteSkPath :: FunPtr (Ptr SkPath -> IO ())
 deleteSkPath = [C.funPtr| void deletePath(SkPath* path) { delete path; } |]
 
-
--- -- | Create a SkPath with the given constructor
--- skPathWith        :: IO (Ptr SkPath) -> IO (ForeignPtr SkPath)
--- skPathWith create = create >>= newForeignPtr deleteSkPath
-
 --------------------------------------------------------------------------------
 
-
+-- | Clears the canvas
 clear              :: Ptr SkCanvas -> SkColor -> IO ()
 clear canvas color =
   [C.block|void {$(SkCanvas* canvas)->clear($(unsigned int color));}|]
 
-drawPath :: Ptr SkCanvas -> Ptr SkPath -> Ptr SkPaint -> IO ()
+-- | Draws a path on the canvas
+drawPath                   :: Ptr SkCanvas -> Ptr SkPath -> Ptr SkPaint -> IO ()
 drawPath canvas path paint =
   [C.block|void {
           $(SkCanvas* canvas)->drawPath( *$(SkPath* path), *$(SkPaint* paint) );
@@ -302,6 +299,7 @@ withPNGCanvas width height filePath draw =
 
 --------------------------------------------------------------------------------
 
+-- | Can draw to an SVG canvas.
 withSVGCanvas                   :: C.CInt -- ^ Width of the canvas
                                 -> C.CInt -- ^ Height of the canvas
                                 -> OsPath -- ^ output path to the png file
