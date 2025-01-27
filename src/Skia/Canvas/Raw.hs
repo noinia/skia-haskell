@@ -19,7 +19,6 @@ module Skia.Canvas.Raw
 
   -- * Constructing Paints
   , SkPaint
-  , deleteSkPaint
   , newSkPaint
   , newColoredSkPaint
 
@@ -119,15 +118,21 @@ sk_ColorWHITE = [C.pure|unsigned int {SK_ColorWHITE}|]
 --------------------------------------------------------------------------------
 -- * Paints
 
-newSkPaint :: IO (Ptr SkPaint)
-newSkPaint = [C.block|SkPaint* { return new SkPaint;}
-             |]
+-- | Create  a new default skPaint
+newSkPaint :: IO (ForeignPtr SkPaint)
+newSkPaint = newForeignPtr deleteSkPaint =<< newSkPaint'
+  where
+    newSkPaint' :: IO (Ptr SkPaint)
+    newSkPaint' = [C.block|SkPaint* { return new SkPaint;} |]
 
 -- | Creates a new colored paint; the colors are assumed to be in the sRGB color space.
 -- (the forth float is the alpha value)
-newColoredSkPaint               :: (C.CFloat,C.CFloat,C.CFloat) -> C.CFloat -> IO (Ptr SkPaint)
-newColoredSkPaint (r,g,b) alpha =
-  [C.block|SkPaint* { return new SkPaint({$(float r),$(float g),$(float b),$(float alpha)});}|]
+newColoredSkPaint               :: (C.CFloat,C.CFloat,C.CFloat) -> C.CFloat
+                                -> IO (ForeignPtr SkPaint)
+newColoredSkPaint (r,g,b) alpha = newForeignPtr deleteSkPaint =<< newColoredSkPaint'
+  where
+    newColoredSkPaint' =
+      [C.block|SkPaint* { return new SkPaint({$(float r),$(float g),$(float b),$(float alpha)});}|]
 
 -- | Finalizer for the path
 deleteSkPaint :: FunPtr (Ptr SkPaint -> IO ())
@@ -323,6 +328,10 @@ testRaw :: IO ()
 testRaw = do withPNGCanvas 255 255 [osp|/tmp/skiaTestImage.png|] testDraw
              withSVGCanvas 500 500 [osp|/tmp/skiaTestImage.svg|] testDraw
 
+-- | Helper of withForeignPtr
+withForeignPtr'          :: IO (ForeignPtr a) -> (Ptr a -> IO b) -> IO b
+withForeignPtr' create f = do fPtr <- create
+                              withForeignPtr fPtr f
 
 testDraw         :: Ptr SkCanvas -> IO ()
 testDraw canvas  = do
@@ -335,26 +344,24 @@ testDraw canvas  = do
 
   seg   <- lineSegment (0,5) (200,10)
 
-  paint <- newSkPaint
-
-  cPaint <- newColoredSkPaint (0.5,0.6,1) 1.0
-  setAntiAlias (C.CBool 1) cPaint
-  setStroke    (C.CBool 1) cPaint
 
   clear canvas sk_ColorWHITE
-  drawPath canvas rect paint
-  drawPath canvas poly paint
-  drawPath canvas seg cPaint
-  drawPath canvas polyL cPaint
+  withForeignPtr' newSkPaint $ \paint -> do
+    drawPath canvas rect paint
+    drawPath canvas poly paint
+
+  withForeignPtr' (newColoredSkPaint (0.5,0.6,1) 1.0) $ \paint ->  do
+    setAntiAlias (C.CBool 1) paint
+    setStroke    (C.CBool 1) paint
+
+    drawPath canvas seg   paint
+    drawPath canvas polyL paint
 
   [C.block|void {
      delete $(SkPath* rect);
      delete $(SkPath* poly);
      delete $(SkPath* polyL);
      delete $(SkPath* seg);
-
-     delete $(SkPaint* paint);
-     delete $(SkPaint* cPaint);
   }|]
 
   -- deleteSkPath rect
