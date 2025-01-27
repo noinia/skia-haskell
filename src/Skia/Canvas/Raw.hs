@@ -2,30 +2,41 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Skia.Canvas.Raw
-  ( clear
-  , drawPath
+  ( testRaw
 
+  -- * Main rendering operations we can do
   , withPNGCanvas
+  , withSVGCanvas
 
 
-
-
-  , testRaw
-
-
+  -- * The Canvas type
   , SkCanvas
 
+
+  -- * Operations we can do on a canvas
+  , clear
+  , drawPath
+
+  -- * Constructing Paints
   , SkPaint
+  , deleteSkPaint
   , newSkPaint
   , newColoredSkPaint
 
+  -- ** Setting properties of a Paint
+  , setAntiAlias
+  , setStroke
+
+  -- * Constructing Paths
   , SkPath
+  , deleteSkPath
+
   , rectXYWH
   , lineSegment
   , polygon
   , polyLine
 
-
+  -- * Constructing colors
   , SkColor
   , sk_ColorWHITE
   ) where
@@ -106,6 +117,7 @@ sk_ColorWHITE = [C.pure|unsigned int {SK_ColorWHITE}|]
 
 
 --------------------------------------------------------------------------------
+-- * Paints
 
 newSkPaint :: IO (Ptr SkPaint)
 newSkPaint = [C.block|SkPaint* { return new SkPaint;}
@@ -122,12 +134,16 @@ deleteSkPaint :: FunPtr (Ptr SkPaint -> IO ())
 deleteSkPaint = [C.funPtr| void deletePaint(SkPaint* paint) { delete paint; } |]
 
 
+----------------------------------------
+-- * Setting Paint attributes
 
 -- setAlpha
 -- setAlphaf
 
+-- | Set whether to use AA
 setAntiAlias                :: C.CBool -> Ptr SkPaint -> IO ()
-setAntiAlias enableAA paint = [C.block|void { $(SkPaint* paint)->setAntiAlias($(bool enableAA)); }|]
+setAntiAlias enableAA paint =
+  [C.block|void { $(SkPaint* paint)->setAntiAlias($(bool enableAA)); }|]
 
 -- setARGB
 -- setBlender
@@ -161,6 +177,7 @@ setStyle
 
 
 --------------------------------------------------------------------------------
+-- * Paths
 
 -- | Create a new path
 rectXYWH         :: C.CFloat -> C.CFloat -> C.CFloat -> C.CFloat -> IO (Ptr SkPath)
@@ -332,7 +349,11 @@ testDraw canvas  = do
 
   [C.block|void {
      delete $(SkPath* rect);
+     delete $(SkPath* poly);
+     delete $(SkPath* polyL);
+
      delete $(SkPaint* paint);
+     delete $(SkPaint* cPaint);
   }|]
 
   -- deleteSkPath rect
