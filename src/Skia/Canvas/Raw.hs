@@ -28,8 +28,6 @@ module Skia.Canvas.Raw
 
   -- * Constructing Paths
   , SkPath
-  , deleteSkPath
-
   , rectXYWH
   , lineSegment
   , polygon
@@ -185,43 +183,46 @@ setStyle
 -- * Paths
 
 -- | Create a new path
-rectXYWH         :: C.CFloat -> C.CFloat -> C.CFloat -> C.CFloat -> IO (Ptr SkPath)
-rectXYWH x y w h = [C.block|
+rectXYWH         :: C.CFloat -> C.CFloat -> C.CFloat -> C.CFloat -> IO (ForeignPtr SkPath)
+rectXYWH x y w h = newForeignPtr deleteSkPath =<< rectXYWH'
+  where
+    rectXYWH' = [C.block|
       SkPath* {
           return new SkPath (SkPath::Rect(SkRect::MakeXYWH($(float x), $(float y), $(float w), $(float h))));
       }|]
 
 -- | Create a line segment from s to t
-lineSegment :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat) -> IO (Ptr SkPath)
-lineSegment (sx,sy) (tx,ty) =
-  [C.block|
-    SkPath* {
-      SkPath* path = new SkPath;
-      path->moveTo($(float sx), $(float sy));
-      path->lineTo($(float tx), $(float ty));
+lineSegment :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat) -> IO (ForeignPtr SkPath)
+lineSegment (sx,sy) (tx,ty) = newForeignPtr deleteSkPath =<< lineSegment'
+  where
+    lineSegment' = [C.block|
+      SkPath* {
+        SkPath* path = new SkPath;
+        path->moveTo($(float sx), $(float sy));
+        path->lineTo($(float tx), $(float ty));
 
-      return path;
-    }
-  |]
-
+        return path;
+      }
+      |]
 
 -- | Create a poline
 --
 -- pre: the vectors both have the same number n>= 1 of elements in them
 polyLine                :: Storable.Vector C.CFloat -- ^ xCoords
                         -> Storable.Vector C.CFloat -- ^ y coords
-                        -> IO (Ptr SkPath)
-polyLine xCoords yCoords =
-  [C.block|
-    SkPath* {
-      SkPath* path = new SkPath;
-      path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
-      for (int i = 1 ; i < $vec-len:xCoords ; i++)
-        path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
+                        -> IO (ForeignPtr SkPath)
+polyLine xCoords yCoords = newForeignPtr deleteSkPath =<< polyLine'
+  where
+    polyLine' = [C.block|
+      SkPath* {
+        SkPath* path = new SkPath;
+        path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
+        for (int i = 1 ; i < $vec-len:xCoords ; i++)
+          path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
 
-      return path;
-    }
-  |]
+        return path;
+      }
+      |]
 
 -- |
 -- Create a polygon
@@ -229,19 +230,21 @@ polyLine xCoords yCoords =
 -- pre: the vectors both have the same number n>= 1 of elements in them
 polygon :: Storable.Vector C.CFloat -- ^ xCoords
         -> Storable.Vector C.CFloat -- ^ y coords
-        -> IO (Ptr SkPath)
-polygon xCoords yCoords =
-  [C.block|
-    SkPath* {
-      SkPath* path = new SkPath;
-      path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
-      for (int i = 1 ; i < $vec-len:xCoords ; i++)
-        path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
-      path->close();
+        -> IO (ForeignPtr SkPath)
+polygon xCoords yCoords = newForeignPtr deleteSkPath =<< polygon'
+  where
+    polygon' =
+      [C.block|
+        SkPath* {
+          SkPath* path = new SkPath;
+          path->moveTo($vec-ptr:(float *xCoords)[0],$vec-ptr:(float *yCoords)[0]);
+          for (int i = 1 ; i < $vec-len:xCoords ; i++)
+            path->lineTo($vec-ptr:(float *xCoords)[i],$vec-ptr:(float *yCoords)[i]);
+          path->close();
 
-      return path;
-    }
-  |]
+          return path;
+      }
+      |]
 
 
 -- | Finalizer for the path
@@ -249,9 +252,9 @@ deleteSkPath :: FunPtr (Ptr SkPath -> IO ())
 deleteSkPath = [C.funPtr| void deletePath(SkPath* path) { delete path; } |]
 
 
--- | Create a SkPath with the given constructor
-skPathWith        :: IO (Ptr SkPath) -> IO (ForeignPtr SkPath)
-skPathWith create = create >>= newForeignPtr deleteSkPath
+-- -- | Create a SkPath with the given constructor
+-- skPathWith        :: IO (Ptr SkPath) -> IO (ForeignPtr SkPath)
+-- skPathWith create = create >>= newForeignPtr deleteSkPath
 
 --------------------------------------------------------------------------------
 
@@ -335,34 +338,32 @@ withForeignPtr' create f = do fPtr <- create
 
 testDraw         :: Ptr SkCanvas -> IO ()
 testDraw canvas  = do
-  rect  <- rectXYWH 10 20 120 130
-  poly  <- polygon (Storable.fromList [200, 210, 210, 200])
-                   (Storable.fromList [200, 200, 210, 210])
+  withForeignPtr' (rectXYWH 10 20 120 130) $ \rect -> do
+    withForeignPtr' (polygon (Storable.fromList [200, 210, 210, 200])
+                             (Storable.fromList [200, 200, 210, 210])
+                    ) $ \poly ->
+      withForeignPtr' (polyLine (Storable.fromList [200, 210, 210])
+                                (Storable.fromList [100, 100, 110])) $ \polyL ->
+        withForeignPtr' (lineSegment (0,5) (200,10)) $ \seg -> do
 
-  polyL  <- polyLine (Storable.fromList [200, 210, 210])
-                     (Storable.fromList [100, 100, 110])
+          clear canvas sk_ColorWHITE
+          withForeignPtr' newSkPaint $ \paint -> do
+            drawPath canvas rect paint
+            drawPath canvas poly paint
 
-  seg   <- lineSegment (0,5) (200,10)
+          withForeignPtr' (newColoredSkPaint (0.5,0.6,1) 1.0) $ \paint ->  do
+            setAntiAlias (C.CBool 1) paint
+            setStroke    (C.CBool 1) paint
 
+            drawPath canvas seg   paint
+            drawPath canvas polyL paint
 
-  clear canvas sk_ColorWHITE
-  withForeignPtr' newSkPaint $ \paint -> do
-    drawPath canvas rect paint
-    drawPath canvas poly paint
-
-  withForeignPtr' (newColoredSkPaint (0.5,0.6,1) 1.0) $ \paint ->  do
-    setAntiAlias (C.CBool 1) paint
-    setStroke    (C.CBool 1) paint
-
-    drawPath canvas seg   paint
-    drawPath canvas polyL paint
-
-  [C.block|void {
-     delete $(SkPath* rect);
-     delete $(SkPath* poly);
-     delete $(SkPath* polyL);
-     delete $(SkPath* seg);
-  }|]
+  -- [C.block|void {
+  --    delete $(SkPath* rect);
+  --    delete $(SkPath* poly);
+  --    delete $(SkPath* polyL);
+  --    delete $(SkPath* seg);
+  -- }|]
 
   -- deleteSkPath rect
   -- deleteSkPaint paint
