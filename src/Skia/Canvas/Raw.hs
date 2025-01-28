@@ -2,11 +2,12 @@
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Skia.Canvas.Raw
-  ( testRaw
+  ( testRaw, testDraw
 
   -- * Main rendering operations we can do
   , withPNGCanvas
   , withSVGCanvas
+  , withOpenGLCanvas
 
 
   -- * The Canvas type
@@ -97,6 +98,13 @@ C.include "include/encode/SkPngEncoder.h"
 -- -- for the svg example
 C.include "include/svg/SkSVGCanvas.h"
 C.include "src/xml/SkXMLWriter.h"
+
+-- for the SDL integration
+C.include "include/gpu/ganesh/GrDirectContext.h"
+C.include "include/gpu/ganesh/gl/GrGLInterface.h"
+C.include "include/gpu/ganesh/SkSurfaceGanesh.h"
+C.include "include/gpu/ganesh/gl/GrGLDirectContext.h"
+
 
 --------------------------------------------------------------------------------
 
@@ -321,8 +329,29 @@ withSVGCanvas width height filePath draw =
     -- TODO: I think this works only on posix for now.
     -- on windows should be s.t. like getWindowsString instead I think?
 
+--------------------------------------------------------------------------------
 
-
+-- |
+-- pre: You've already created your OpenGL context and bound it.
+withOpenGLCanvas                   :: C.CInt -- ^ Width of the canvas
+                                   -> C.CInt -- ^ Height of the canvas
+                                   -> (Ptr SkCanvas -> IO ()) -- ^ drawing function
+                                   -> IO ()
+withOpenGLCanvas width height draw =
+    [C.block|void {
+       std::cout << "withOPENGL" << std::endl;
+       sk_sp<const GrGLInterface> interface = nullptr;
+       sk_sp<GrDirectContext> context = GrDirectContexts::MakeGL(interface);
+       SkImageInfo info = SkImageInfo:: MakeN32Premul($(int width), $(int height));
+       sk_sp<SkSurface> surface(SkSurfaces::RenderTarget(context.get(), skgpu::Budgeted::kNo, info));
+       if (!surface) {
+         std::cout << "ERROR, surface is null";
+         return;
+       }
+       std::cout << "DRAWING" << surface << std::endl;
+       SkCanvas* canvas = surface->getCanvas();
+       $fun:(void (*draw)(SkCanvas*))(canvas);
+    }|]
 --------------------------------------------------------------------------------
 
 testRaw :: IO ()
