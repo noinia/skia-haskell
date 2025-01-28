@@ -8,7 +8,23 @@ g++ -std=c++17 hello.cpp -framework CoreFoundation -framework \
   -I/opt/homebrew/opt/jpeg-turbo/include \
   -L/opt/homebrew/opt/jpeg-turbo/lib \
   -lz -ljpeg -lpng \
-  -lexpat
+  -lexpat \
+  -I/opt/homebrew/include/SDL2 -L/opt/homebrew/lib -lSDL2 \
+  -framework OpenGL
+
+# g++ -std=c++17 SkiaSDLExample.cpp -framework CoreFoundation -framework \
+#   CoreGraphics -framework CoreText -framework CoreServices \
+#   -L/Users/frank/workspace/skia/out/Static -lskia  \
+#   -I/Users/frank/workspace/skia/ \
+#   -o skiasdlexample \
+#   -I/opt/homebrew/opt/jpeg-turbo/include \
+#   -L/opt/homebrew/opt/jpeg-turbo/lib \
+#   -lz -ljpeg -lpng \
+#   -lexpat \
+#   -I/opt/homebrew/include/SDL2 -L/opt/homebrew/lib -lSDL2 \
+#   -framework OpenGL
+
+
 
   # -L/opt/homebrew/opt/webp/include/webp -llibwebp
   # -L/opt/homebrew/opt/webp/include/webp -llibwebp
