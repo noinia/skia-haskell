@@ -20,7 +20,9 @@ main :: IO ()
 main = do
     putStrLn "Hello, Haskell!"
     testRaw
+    -- mainSDL
 
+mainSDL = do
     SDL.initializeAll
     let openGLCfg = SDL.defaultOpenGL
         windowCfg = SDL.defaultWindow { SDL.windowGraphicsContext = SDL.OpenGLContext openGLCfg

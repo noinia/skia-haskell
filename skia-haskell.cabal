@@ -56,7 +56,8 @@ library
 
       MyLib
 
-    -- other-modules:
+    other-modules:
+      Skia.Paint.PaintSpec
     -- other-extensions:
     hs-source-dirs:   src
 

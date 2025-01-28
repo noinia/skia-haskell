@@ -20,6 +20,7 @@ module Skia.Canvas.Raw
 
   -- * Constructing Paints
   , SkPaint
+  , fromPaintSpec
   , newSkPaint
   , newColoredSkPaint
 
@@ -39,7 +40,8 @@ module Skia.Canvas.Raw
   , sk_ColorWHITE
   ) where
 
--- import Skia.Color
+import           Control.Lens ((^.),(.~),(&))
+import           Data.Default.Class
 import           System.OsPath
 -- import           Foreign.C.String (withCString)
 import           Foreign.Ptr
@@ -51,6 +53,11 @@ import qualified Data.Vector.Storable as Storable
 import           System.OsString.Internal.Types ( getOsString, getPosixString )
 import           Data.ByteString (ByteString)
 import           System.OsString.Data.ByteString.Short (fromShort)
+import           Skia.Paint.PaintSpec
+import           Data.Colour
+import           Data.Colour.Names
+import           Data.Colour.SRGB (RGB(..),toSRGB)
+
 --------------------------------------------------------------------------------
 
 data SkCanvas
@@ -66,6 +73,9 @@ data SkPaint
 -- type SkColor = Word32
 type SkColor = C.CUInt
 
+newtype Style = Style Word8
+  deriving newtype (Show,Read,Eq,Ord,Bounded,Enum,Real,Num,Storable.Storable)
+
 -- skiaContext :: C.Context
 -- skiaContext =
 
@@ -75,6 +85,7 @@ C.context $ C.cppCtx <> C.funCtx <> C.vecCtx <> C.bsCtx <> C.cppTypePairs
  -- , ("SkColor",  [t|SkColor|])
  , ("SkPath",   [t|SkPath|])
  , ("SkPaint",  [t|SkPaint|])
+ , ("SkPaint::Style",    [t|Style|])
  ]
 
  -- skiaContext
@@ -123,6 +134,38 @@ sk_ColorWHITE = [C.pure|unsigned int {SK_ColorWHITE}|]
 
 --------------------------------------------------------------------------------
 -- * Paints
+
+-- | create a new Paint from a given paint spec
+fromPaintSpec      :: PaintSpec -> IO (ForeignPtr SkPaint)
+fromPaintSpec spec = newForeignPtr deleteSkPaint =<< fromPaintSpec'
+  where
+    fromPaintSpec' :: IO (Ptr SkPaint)
+    fromPaintSpec' =
+      [C.block|SkPaint* {
+              SkPaint* paint = new SkPaint({$(float r),$(float g),$(float b),$(float alpha)});
+              paint->setAntiAlias($(bool enableAA));
+              paint->setStyle($(SkPaint::Style paintStyle));
+              return paint;
+      }|]
+        where
+          enableAA = C.CBool $ case spec^.antiAlias of
+            NoAntiAliassing   -> 0
+            WithAntiAliassing -> 1
+          alpha = realToFrac . alphaChannel $ spec^.color
+          RGB r g b = fmap realToFrac . toSRGB . pureColour $ spec^.color
+          paintStyle = Style $ case spec^.style of
+            FillOnly      -> 0
+            StrokeOnly    -> 1
+            StrokeAndFill -> 2
+
+
+-- | pre: the opacity is non-zero
+pureColour    :: (Ord a, Fractional a) => AlphaColour a -> Colour a
+pureColour ac
+    | a > 0     = darken (recip a) (ac `over` black)
+    | otherwise = black  -- this case should not really happen by the precondition
+  where
+    a = alphaChannel ac
 
 -- | Create  a new default skPaint
 newSkPaint :: IO (ForeignPtr SkPaint)
@@ -264,8 +307,8 @@ deleteSkPath = [C.funPtr| void deletePath(SkPath* path) { delete path; } |]
 
 -- | Clears the canvas
 clear              :: Ptr SkCanvas -> SkColor -> IO ()
-clear canvas color =
-  [C.block|void {$(SkCanvas* canvas)->clear($(unsigned int color));}|]
+clear canvas color' =
+  [C.block|void {$(SkCanvas* canvas)->clear($(unsigned int color'));}|]
 
 -- | Draws a path on the canvas
 drawPath                   :: Ptr SkCanvas -> Ptr SkPath -> Ptr SkPaint -> IO ()
@@ -374,11 +417,12 @@ testDraw canvas  = do
         withForeignPtr' (lineSegment (0,5) (200,10)) $ \seg -> do
 
           clear canvas sk_ColorWHITE
-          withForeignPtr' newSkPaint $ \paint -> do
+          withForeignPtr' (fromPaintSpec $ def&style .~ StrokeOnly) $ \paint -> do
             drawPath canvas rect paint
             drawPath canvas poly paint
 
-          withForeignPtr' (newColoredSkPaint (0.5,0.6,1) 1.0) $ \paint ->  do
+          withForeignPtr' (fromPaintSpec $ def&color .~ opaque aquamarine
+                          ) $ \paint ->  do
             setAntiAlias (C.CBool 1) paint
             setStroke    (C.CBool 1) paint
 
