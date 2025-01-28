@@ -31,6 +31,7 @@ module Skia.Canvas.Raw
   -- * Constructing Paths
   , SkPath
   , rectXYWH
+  , circle
   , lineSegment
   , polygon
   , polyLine
@@ -157,6 +158,9 @@ fromPaintSpec spec = newForeignPtr deleteSkPaint =<< fromPaintSpec'
             FillOnly      -> 0
             StrokeOnly    -> 1
             StrokeAndFill -> 2
+          -- TODO: I'd rather use the named constants from the c++-code here, but that
+          -- would invoke function calls. :(
+          -- TODO: do&set the othe properties as well
 
 
 -- | pre: the opacity is non-zero
@@ -241,6 +245,16 @@ rectXYWH x y w h = newForeignPtr deleteSkPath =<< rectXYWH'
       SkPath* {
           return new SkPath (SkPath::Rect(SkRect::MakeXYWH($(float x), $(float y), $(float w), $(float h))));
       }|]
+
+-- | Create a circle with the given center and the given radius
+circle         :: (C.CFloat, C.CFloat) -> C.CFloat -> IO (ForeignPtr SkPath)
+circle (x,y) r = newForeignPtr deleteSkPath =<< circle'
+  where
+    circle' = [C.block|
+      SkPath* {
+          return new SkPath (SkPath::Circle($(float x), $(float y), $(float r)));
+      }|]
+
 
 -- | Create a line segment from s to t
 lineSegment                 :: (C.CFloat, C.CFloat) -> (C.CFloat, C.CFloat)
@@ -398,7 +412,7 @@ withOpenGLCanvas width height draw =
 --------------------------------------------------------------------------------
 
 testRaw :: IO ()
-testRaw = do withPNGCanvas 255 255 [osp|/tmp/skiaTestImage.png|] testDraw
+testRaw = do withPNGCanvas 500 500 [osp|/tmp/skiaTestImage.png|] testDraw
              withSVGCanvas 500 500 [osp|/tmp/skiaTestImage.svg|] testDraw
 
 -- | Helper of withForeignPtr
@@ -416,10 +430,17 @@ testDraw canvas  = do
                                 (Storable.fromList [100, 100, 110])) $ \polyL ->
         withForeignPtr' (lineSegment (0,5) (200,10)) $ \seg -> do
 
+
+
           clear canvas sk_ColorWHITE
           withForeignPtr' (fromPaintSpec $ def&style .~ StrokeOnly) $ \paint -> do
             drawPath canvas rect paint
             drawPath canvas poly paint
+
+          withForeignPtr' (fromPaintSpec $ def&color .~ opaque red) $ \paint -> do
+            withForeignPtr' (circle (100,200) 5) $ \circle' ->
+              drawPath canvas circle' paint
+
 
           withForeignPtr' (fromPaintSpec $ def&color .~ opaque aquamarine
                           ) $ \paint ->  do
