@@ -7,6 +7,7 @@ module Skia.Canvas.Raw
   -- * Main rendering operations we can do
   , withPNGCanvas
   , withSVGCanvas
+  , withPDFCanvas
   , withOpenGLCanvas
 
 
@@ -110,6 +111,10 @@ C.include "include/encode/SkPngEncoder.h"
 -- -- for the svg example
 C.include "include/svg/SkSVGCanvas.h"
 C.include "src/xml/SkXMLWriter.h"
+
+-- For the PDF backend
+C.include "include/docs/SkPDFDocument.h"
+
 
 -- for the SDL integration
 C.include "include/gpu/ganesh/GrDirectContext.h"
@@ -388,6 +393,43 @@ withSVGCanvas width height filePath draw =
 
 --------------------------------------------------------------------------------
 
+-- | Renders to an single page PDF File
+--
+--  PDF pages are sized in point units. 1 pt == 1/72 inch == 127/360 mm.
+withPDFCanvas                   :: C.CFloat -- ^ Width of the page in point units
+                                -> C.CFloat -- ^ Height of the canvas in point units
+                                -> OsPath -- ^ output path to the pdf file
+                                -> (Ptr SkCanvas -> IO ()) -- ^ drawing function
+                                -> IO ()
+withPDFCanvas width height filePath draw =
+    [C.block|void {
+          SkFILEWStream pdfStream($bs-ptr:rawFilePath);
+          SkPDF::Metadata metadata;
+          // metadata.fTitle = "";
+          metadata.fCreator = "Haskell-SKIA";
+          // metadata.fCreation = {0, 2019, 1, 4, 31, 12, 34, 56};
+          // metadata.fModified = {0, 2019, 1, 4, 31, 12, 34, 56};
+          auto pdfDocument = SkPDF::MakeDocument(&pdfStream, metadata);
+          SkCanvas* canvas = pdfDocument->beginPage( $(float width)
+                                                   , $(float height));
+
+          $fun:(void (*draw)(SkCanvas*))(canvas);
+
+          pdfDocument->endPage();
+          pdfDocument->close();
+    }|]
+  where
+    rawFilePath :: ByteString
+    rawFilePath = fromShort . getPosixString . getOsString $ filePath
+    -- TODO: I think this works only on posix for now.
+    -- on windows should be s.t. like getWindowsString instead I think?
+
+-- | a4PageSize  in points
+a4PageSize :: (C.CFloat,C.CFloat)
+a4PageSize = let f x = x * (127/360) in (f 210, f 297)
+
+--------------------------------------------------------------------------------
+
 -- |
 -- pre: You've already created your OpenGL context and bound it.
 withOpenGLCanvas                   :: C.CInt -- ^ Width of the canvas
@@ -414,6 +456,7 @@ withOpenGLCanvas width height draw =
 testRaw :: IO ()
 testRaw = do withPNGCanvas 500 500 [osp|/tmp/skiaTestImage.png|] testDraw
              withSVGCanvas 500 500 [osp|/tmp/skiaTestImage.svg|] testDraw
+             withPDFCanvas 500 500 [osp|/tmp/skiaTestImage.pdf|] testDraw
 
 -- | Helper of withForeignPtr
 withForeignPtr'          :: IO (ForeignPtr a) -> (Ptr a -> IO b) -> IO b
@@ -449,63 +492,3 @@ testDraw canvas  = do
 
             drawPath canvas seg   paint
             drawPath canvas polyL paint
-
-  -- [C.block|void {
-  --    delete $(SkPath* rect);
-  --    delete $(SkPath* poly);
-  --    delete $(SkPath* polyL);
-  --    delete $(SkPath* seg);
-  -- }|]
-
-  -- deleteSkPath rect
-  -- deleteSkPaint paint
-
-
-  -- path' <- skPathWith (rectXYWH 10 20 120 130)
-  -- withForeignPtr path' $ \path -> do
-  --   clear canvas sk_ColorWHITE
-  --   drawPath
-
-  -- [C.block|void {
-  --         SkPath path;
-  --         path.moveTo(10.0f, 10.0f);
-  --         path.lineTo(100.0f, 0.0f);
-  --         path.lineTo(100.0f, 100.0f);
-  --         path.lineTo(0.0f, 100.0f);
-  --         path.lineTo(50.0f, 50.0f);
-  --         path.close();
-
-  --         // creating a paint to draw with
-  --         SkPaint p;
-  --         p.setAntiAlias(true);
-
-  --         // clear out which may be was drawn before and draw the path
-  --         $(SkCanvas* canvas)->clear(SK_ColorWHITE);
-  --         $(SkCanvas* canvas)->drawPath(path, p);
-  -- }|]
-
--- testRawImpl                   :: C.CInt -> C.CInt
---                               -> (Ptr SkCanvas -> IO ())
---                               -> IO ()
--- testRawImpl width height draw =
---   [C.block|void {
---               const char pngFilePath[] = "/tmp/skiaTestImage.png";
-
---               sk_sp<SkSurface> rasterSurface =
---                   SkSurfaces::Raster(SkImageInfo::MakeN32Premul($(int width), $(int height)));
-
---               SkCanvas* canvas = rasterSurface->getCanvas();
---               $fun:(void (*draw)(SkCanvas*))(canvas);
-
---               SkPixmap pixmap;
---               rasterSurface->peekPixels(&pixmap);
-
---               SkFILEWStream output(pngFilePath);
---               if (!SkPngEncoder::Encode(&output, pixmap, {})) {
---                 std::cout << "PNG encoding failed.\n";
---                 return;
---               }
-
-
---               std::cout << "Hello world \n";
---           }|]
