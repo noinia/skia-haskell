@@ -40,6 +40,11 @@ module Skia.Canvas.Raw
   -- * Constructing colors
   , SkColor
   , sk_ColorWHITE
+
+
+
+  -- * Utility function
+  , withForeignPtr'
   ) where
 
 import           Control.Lens ((^.),(.~),(&))
@@ -451,6 +456,7 @@ withOpenGLCanvas width height draw =
        SkCanvas* canvas = surface->getCanvas();
        $fun:(void (*draw)(SkCanvas*))(canvas);
     }|]
+
 --------------------------------------------------------------------------------
 
 testRaw :: IO ()
