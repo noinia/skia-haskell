@@ -27,11 +27,6 @@ myDrawing = do clear sk_ColorWHITE
 
 -- newtype DrawM a = ()
 
-type data Draw :: Effect
-
-
-type instance DispatchOf Draw = Static WithSideEffects
-newtype instance StaticRep Draw = DrawRep Canvas
 
 
 

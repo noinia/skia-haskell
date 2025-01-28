@@ -28,6 +28,7 @@ common setup
       , os-string               >= 2.0.7       && < 2.1
       , data-default-class      >= 0.1         && < 1
       , colour                  >= 2.3.6       && < 2.4
+      , vector-builder          >= 0.3.8.5     && < 0.4
 
       , OpenGL                  >= 3.0.3.0     && < 3.1
 
@@ -47,7 +48,6 @@ library
     exposed-modules:
       -- Skia.Canvas
       Skia.Canvas.Raw
-      Skia.Canvas.Type
 
       Skia.Color
       Skia.Path
@@ -57,7 +57,10 @@ library
       MyLib
 
     other-modules:
+      Skia.Canvas.Type
+      Skia.Canvas.Effect
       Skia.Paint.PaintSpec
+
     -- other-extensions:
     hs-source-dirs:   src
 
