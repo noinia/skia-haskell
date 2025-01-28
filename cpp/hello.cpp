@@ -13,6 +13,9 @@
 #include "include/svg/SkSVGCanvas.h"
 #include "src/xml/SkXMLWriter.h"
 
+// PDF stuff
+#include "include/docs/SkPDFDocument.h"
+
 
 // for the SDL stuff
 #include "SDL.h" // the SDL lib itself
@@ -196,7 +199,7 @@ int main (int argc, char * const argv[]) {
   // hard coded example program parameters
   const char pngFilePath[] = "/tmp/skiaTestImage.png";
   const char svgFilePath[] = "/tmp/skiaTestImage.svg";
-  const char pdfFilePath[] = "/tmp/skiaTestImage.svg";
+  const char pdfFilePath[] = "/tmp/skiaTestImage.pdf";
 
   int width = 256;
   int height = 256;
@@ -235,6 +238,29 @@ int main (int argc, char * const argv[]) {
 
 
   mainSdL();
+
+  ////////////////////////////////////////////////////////////////////////////////
+  // render to PDF
+
+  const char documentTitle[] = "title";
+  constexpr SkSize pageSize{8.5f * 72, 11.0f * 72};
+  // char* documentTitle =
+
+  SkFILEWStream pdfStream(pdfFilePath);
+  SkPDF::Metadata metadata;
+  metadata.fTitle = documentTitle;
+  metadata.fCreator = "Example WritePDF() Function";
+  metadata.fCreation = {0, 2019, 1, 4, 31, 12, 34, 56};
+  metadata.fModified = {0, 2019, 1, 4, 31, 12, 34, 56};
+  auto pdfDocument = SkPDF::MakeDocument(&pdfStream, metadata);
+  SkCanvas* pageCanvas = pdfDocument->beginPage(pageSize.width(),
+                                                pageSize.height());
+  drawStuff(pageCanvas);
+  pdfDocument->endPage();
+
+  pdfDocument->close();
+
+  ////////////////////////////////////////////////////////////////////////////////
 
   return 0;
 }

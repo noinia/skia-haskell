@@ -9,8 +9,14 @@ g++ -std=c++17 hello.cpp -framework CoreFoundation -framework \
   -L/opt/homebrew/opt/jpeg-turbo/lib \
   -lz -ljpeg -lpng \
   -lexpat \
+  -lharfbuzz -lharfbuzz-subset \
+  -I/opt/homebrew/opt/harfbuzz/include/harfbuzz/ \
+  -L/opt/homebrew/opt/harfbuzz/lib \
   -I/opt/homebrew/include/SDL2 -L/opt/homebrew/lib -lSDL2 \
   -framework OpenGL
+
+
+  # -I/opt/homebrew/opt/harfbuzz/include/harfbuzz/
 
 # g++ -std=c++17 SkiaSDLExample.cpp -framework CoreFoundation -framework \
 #   CoreGraphics -framework CoreText -framework CoreServices \
